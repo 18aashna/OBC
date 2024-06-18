@@ -1,0 +1,70 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#define MAX_LINE_LENGTH 100
+
+void parent_process(int fd) {
+    char message[] = "Hello from parent process!";
+    
+    // Write to file
+    printf("Parent process writing to file...\n");
+    write(fd, message, sizeof(message));
+
+    // Close the file descriptor
+    close(fd);
+}
+
+void child_process(int fd) {
+    char buffer[MAX_LINE_LENGTH];
+    int bytes_read;
+
+    // Read from file
+    printf("Child process reading from file...\n");
+    bytes_read = read(fd, buffer, MAX_LINE_LENGTH);
+
+    // Close the file descriptor
+    close(fd);
+
+    // Print what child read
+    if (bytes_read > 0) {
+        printf("Child process read: %.*s\n", bytes_read, buffer);
+    } else {
+        printf("Child process read empty file.\n");
+    }
+}
+
+int main() {
+    int fd;
+    pid_t pid;
+
+    // Open a temporary file for communication
+    fd = open("communication.txt", O_RDWR | O_CREAT | O_TRUNC, 0666);
+    if (fd == -1) {
+        perror("Error opening file");
+        return EXIT_FAILURE;
+    }
+
+    // Fork a child process
+    pid = fork();
+
+    if (pid < 0) {
+        perror("Fork failed");
+        return EXIT_FAILURE;
+    } else if (pid == 0) {
+        // Child process
+        child_process(fd);
+    } else {
+        // Parent process
+        parent_process(fd);
+
+        // Wait for child to terminate
+        wait(NULL);
+    }
+
+    return EXIT_SUCCESS;
+}
